@@ -1,1 +1,171 @@
-local v0=string.char;local v1=string.byte;local v2=string.sub;local v3=bit32 or bit ;local v4=v3.bxor;local v5=table.concat;local v6=table.insert;local function v7(v12,v13) local v14={};for v17=1, #v12 do v6(v14,v0(v4(v1(v2(v12,v17,v17 + 1 )),v1(v2(v13,1 + (v17% #v13) ,1 + (v17% #v13) + 1 )))%256 ));end return v5(v14);end local v8=11853 + 4311 + ((((9486 -5622) + (365166 -(68 + 997))) -(1090583 -816187)) -67600) + ((191904 -(802 + 150)) -(111908 -(226 + 1044))) ;v8=v8 + ((491 -378) -(26 + 67)) + ((1336 -(32 + 85)) -(117 + 2 + 222 + 775)) ;local v9=1204413 -(892 + 65) ;local v10=2935326 -1704855 ;local v11=14830892 -6807411 ;if (v10>v9) then print(v7("\197\209\206\32","\126\177\163\187\69\134\219\167"));end if ((1 + 0 + v11)>v10) then print(v7("\44\207\44\208\239\32\204\62\192\188\55\197\47\133\255\44\195\46\204\232\42\194\36\214\189","\156\67\173\74\165"));end print(v7("\23\187\64\21\183\47\72\51\247\114\37\168\52\79\58\176\90\43\252\49\79\56\187\9\21\179\43\86\56\178\93\19\176\63\6\60\190\77\19\252\50\78\61\164\9\5\168\52\79\58\176\8","\38\84\215\41\118\220\70"));do local v15=0 -0 ;local v16;while true do if (v15==(1187 -(1069 + 118))) then function sieve_of_eratosthenes(v18) local v19={};for v22=1,v18 do v19[v22]=1~=v22 ;end for v24=352 -(87 + 263) ,math.floor(math.sqrt(v18)) do if v19[v24] then for v25=v24 * v24 ,v18,v24 do v19[v25]=false;end end end return v19;end v16=sieve_of_eratosthenes(918 -498 );v15=181 -(67 + 113) ;end if (v15==(1 -0)) then for v20,v21 in pairs(v16) do if v21 then print(v7("\96\4\43\31\251\16\16\45\7\240\84\76\98","\158\48\118\66\114")   .. v20 );end end break;end end end print(v7("\131\43\7\118\103\170\187\164\38\22\35\96\166\250\191\33\80\52\118\182\239\244","\155\203\68\112\86\19\197"));
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+-- [[ GLOBAL SETTINGS ]]
+_G.AimbotEnabled = false
+_G.ESPEnabled = false
+_G.TeamCheck = true
+_G.AimPart = "Head"
+_G.Sensitivity = 0 
+_G.CircleRadius = 150
+_G.HoldKey = Enum.KeyCode.X -- Default Key
+
+local IsHoldingKey = false
+
+-- [[ FUNGSI VALIDASI (CEK MUSUH & DARAH) ]]
+local function IsValid(Player)
+    if Player and Player ~= LocalPlayer and Player.Character then
+        local Hum = Player.Character:FindFirstChildOfClass("Humanoid")
+        local Part = Player.Character:FindFirstChild(_G.AimPart)
+        if Hum and Hum.Health > 0 and Part then
+            if _G.TeamCheck and Player.Team == LocalPlayer.Team then return false end
+            return true
+        end
+    end
+    return false
+end
+
+-- [[ FUNGSI CARI TARGET TERDEKAT ]]
+local function GetClosestPlayer()
+    local MaximumDistance = _G.CircleRadius
+    local Target = nil
+    for _, v in pairs(Players:GetPlayers()) do
+        if IsValid(v) then
+            local ScreenPoint, OnScreen = Camera:WorldToViewportPoint(v.Character[_G.AimPart].Position)
+            if OnScreen then
+                local MouseLocation = UserInputService:GetMouseLocation()
+                local VectorDistance = (Vector2.new(MouseLocation.X, MouseLocation.Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                if VectorDistance < MaximumDistance then
+                    MaximumDistance = VectorDistance
+                    Target = v
+                end
+            end
+        end
+    end
+    return Target
+end
+
+-- [[ FUNGSI ESP (HIGHLIGHT) ]]
+local function UpdateESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local char = player.Character
+            local highlight = char:FindFirstChild("GeminiESP")
+            
+            if _G.ESPEnabled then
+                -- Cek apakah musuh
+                if player.Team ~= LocalPlayer.Team or player.Team == nil then
+                    if not highlight then
+                        highlight = Instance.new("Highlight")
+                        highlight.Name = "GeminiESP"
+                        highlight.Parent = char
+                    end
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = Color3.new(1, 1, 1)
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Enabled = true
+                else
+                    if highlight then highlight.Enabled = false end
+                end
+            else
+                if highlight then highlight.Enabled = false end
+            end
+        end
+    end
+end
+
+-- [[ INPUT HANDLING ]]
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == _G.HoldKey then IsHoldingKey = true end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == _G.HoldKey then IsHoldingKey = false end
+end)
+
+-- [[ MAIN LOOP ]]
+RunService.RenderStepped:Connect(function()
+    -- Update ESP secara berkala
+    UpdateESP()
+
+    -- Logika Aimbot
+    local MyChar = LocalPlayer.Character
+    local MyHum = MyChar and MyChar:FindFirstChildOfClass("Humanoid")
+    
+    if _G.AimbotEnabled and IsHoldingKey and MyHum and MyHum.Health > 0 then
+        local Target = GetClosestPlayer()
+        if Target and IsValid(Target) then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Character[_G.AimPart].Position)
+        end
+    end
+end)
+
+-- [[ UI SYSTEM ]]
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 200, 0, 220)
+MainFrame.Position = UDim2.new(0.1, 0, 0.4, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "😳 | Auto Headshot | V-0.0.1"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+
+-- Button Aimbot
+local btnAim = Instance.new("TextButton", MainFrame)
+btnAim.Size = UDim2.new(0.8, 0, 0, 35)
+btnAim.Position = UDim2.new(0.1, 0, 0.25, 0)
+btnAim.Text = "Aimbot: OFF"
+btnAim.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+btnAim.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", btnAim)
+
+-- Button ESP
+local btnESP = Instance.new("TextButton", MainFrame)
+btnESP.Size = UDim2.new(0.8, 0, 0, 35)
+btnESP.Position = UDim2.new(0.1, 0, 0.45, 0)
+btnESP.Text = "ESP: OFF"
+btnESP.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+btnESP.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", btnESP)
+
+-- Input Key
+local keyInput = Instance.new("TextBox", MainFrame)
+keyInput.Size = UDim2.new(0.8, 0, 0, 35)
+keyInput.Position = UDim2.new(0.1, 0, 0.7, 0)
+keyInput.Text = "X"
+keyInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+keyInput.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", keyInput)
+
+-- UI LOGIC
+btnAim.MouseButton1Click:Connect(function()
+    _G.AimbotEnabled = not _G.AimbotEnabled
+    btnAim.Text = _G.AimbotEnabled and "Aimbot: ON" or "Aimbot: OFF"
+    btnAim.BackgroundColor3 = _G.AimbotEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+btnESP.MouseButton1Click:Connect(function()
+    _G.ESPEnabled = not _G.ESPEnabled
+    btnESP.Text = _G.ESPEnabled and "ESP: ON" or "ESP: OFF"
+    btnESP.BackgroundColor3 = _G.ESPEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+keyInput.FocusLost:Connect(function()
+    local key = keyInput.Text:upper()
+    if #key == 1 then
+        _G.HoldKey = Enum.KeyCode[key]
+    else
+        keyInput.Text = "X"
+    end
+end)
